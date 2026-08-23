@@ -61,3 +61,4 @@ npm run build
 3. 执行 `npm test -- --run` 和 `npm run build`。
 4. 上传 `dist/`，验证书架、阅读位置、生词本复习和个人统计四条主流程。
 5. 生产环境关闭调试日志，并为匿名用户配置 CAPTCHA 或访问限制。
+6. 阅读 `SECURITY.md`，完成远端 RLS/Data API 回读、安装包验收和凭据复核。
