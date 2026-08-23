@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { books, type Book, type Word } from './data/books'
 import AppIcon from './components/AppIcon.vue'
 import BookCard from './components/BookCard.vue'
@@ -22,6 +22,7 @@ const learning = useLearningStore()
 const cloudStatus = ref('本地优先')
 let cloudUserId: string | null = null
 let syncTimer: number | undefined
+let positionTimer: number | undefined
 
 const selectedChapter = computed(() => selectedBook.value && selectedChapterId.value ? selectedBook.value.chapters.find((chapter) => chapter.id === selectedChapterId.value) ?? null : null)
 const wordbookWords = computed(() => books.flatMap((book) => book.words).filter((word) => learning.state.wordbookIds.includes(word.id)))
@@ -34,9 +35,12 @@ const continueChapter = computed(() => {
 })
 const currentChapterIndex = computed(() => selectedBook.value && selectedChapterId.value ? selectedBook.value.chapters.findIndex((chapter) => chapter.id === selectedChapterId.value) : -1)
 
-function openBook(book: Book) { selectedBook.value = book; selectedChapterId.value = learning.state.lastBookId === book.id ? learning.state.lastChapterId : book.chapters[0]?.id ?? null; if (selectedChapterId.value) learning.rememberChapter(book.id, selectedChapterId.value) }
+function readerElement() { return document.querySelector<HTMLElement>('.reader-content') }
+function restoreReadingPosition() { const element = readerElement(); if (!element || !selectedChapterId.value) return; const position = learning.state.readingPositions[selectedChapterId.value] ?? 0; element.scrollTop = (element.scrollHeight - element.clientHeight) * (position / 100); element.onscroll = saveReadingPosition }
+function openBook(book: Book) { selectedBook.value = book; selectedChapterId.value = learning.state.lastBookId === book.id ? learning.state.lastChapterId : book.chapters[0]?.id ?? null; if (selectedChapterId.value) learning.rememberChapter(book.id, selectedChapterId.value); void nextTick(restoreReadingPosition) }
 function closeReader() { selectedBook.value = null; selectedChapterId.value = null; selectedWord.value = null }
-function selectChapter(chapterId: string) { selectedChapterId.value = chapterId; if (selectedBook.value) learning.rememberChapter(selectedBook.value.id, chapterId); selectedWord.value = null }
+function selectChapter(chapterId: string) { selectedChapterId.value = chapterId; if (selectedBook.value) learning.rememberChapter(selectedBook.value.id, chapterId); selectedWord.value = null; void nextTick(restoreReadingPosition) }
+function saveReadingPosition() { const element = readerElement(); if (!element || !selectedChapterId.value) return; window.clearTimeout(positionTimer); positionTimer = window.setTimeout(() => { const maxScroll = element.scrollHeight - element.clientHeight; learning.rememberReadingPosition(selectedChapterId.value as string, maxScroll > 0 ? (element.scrollTop / maxScroll) * 100 : 0) }, 250) }
 function paragraphTokens(paragraph: string): ReadingToken[] { return tokenizeReadingContent(paragraph, new Set(selectedChapter.value?.wordIds.map((id) => selectedBook.value?.words.find((word) => word.id === id)?.word).filter(Boolean) as string[] ?? [])) }
 function openWord(wordText: string) { selectedWord.value = selectedBook.value?.words.find((word) => word.chapterId === selectedChapter.value?.id && word.word === wordText) ?? null }
 function toggleSelectedWordbook() { if (selectedWord.value) learning.toggleWordbook(selectedWord.value.id) }

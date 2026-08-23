@@ -8,6 +8,7 @@ export interface LearningState {
   masteredWordIds: string[]
   wordbookIds: string[]
   removedWordbookIds: string[]
+  readingPositions: Record<string, number>
   lastBookId: string | null
   lastChapterId: string | null
 }
@@ -17,6 +18,7 @@ const initialState: LearningState = {
   masteredWordIds: [],
   wordbookIds: [],
   removedWordbookIds: [],
+  readingPositions: {},
   lastBookId: books[0]?.id ?? null,
   lastChapterId: books[0]?.chapters[0]?.id ?? null,
 }
@@ -55,6 +57,7 @@ export const useLearningStore = defineStore('learning', () => {
       masteredWordIds: [...toRaw(raw.masteredWordIds)],
       wordbookIds: [...toRaw(raw.wordbookIds)],
       removedWordbookIds: [...toRaw(raw.removedWordbookIds ?? [])],
+      readingPositions: { ...(toRaw(raw.readingPositions ?? {})) },
       lastBookId: raw.lastBookId,
       lastChapterId: raw.lastChapterId,
     }
@@ -64,6 +67,13 @@ export const useLearningStore = defineStore('learning', () => {
   function rememberChapter(bookId: string, chapterId: string) {
     state.value.lastBookId = bookId
     state.value.lastChapterId = chapterId
+    persist()
+  }
+
+  function rememberReadingPosition(chapterId: string, position: number) {
+    const normalized = Math.max(0, Math.min(100, Math.round(position)))
+    if (state.value.readingPositions[chapterId] === normalized) return
+    state.value.readingPositions[chapterId] = normalized
     persist()
   }
 
@@ -92,5 +102,5 @@ export const useLearningStore = defineStore('learning', () => {
     persist()
   }
 
-  return { state, ready, completedCount, wordbookCount, load, replaceState, rememberChapter, markChapterComplete, toggleWordbook, toggleMastery }
+  return { state, ready, completedCount, wordbookCount, load, replaceState, rememberChapter, rememberReadingPosition, markChapterComplete, toggleWordbook, toggleMastery }
 })

@@ -17,6 +17,7 @@ describe('learning store', () => {
     expect(store.wordbookCount).toBe(1)
     expect(store.state.wordbookIds).toContain('alice-w001')
     expect(store.state.removedWordbookIds).toEqual([])
+    expect(store.state.readingPositions).toEqual({})
 
     store.toggleWordbook('alice-w001')
     expect(store.state.wordbookIds).not.toContain('alice-w001')
@@ -25,13 +26,17 @@ describe('learning store', () => {
     store.toggleWordbook('alice-w001')
     expect(store.state.wordbookIds).toContain('alice-w001')
     expect(store.state.removedWordbookIds).not.toContain('alice-w001')
+
+    store.rememberReadingPosition('alice-ch01', 135)
+    expect(store.state.readingPositions['alice-ch01']).toBe(100)
   })
 
   it('replaces local state after a cloud merge and persists it', () => {
     const store = useLearningStore()
     store.load()
-    store.replaceState({ ...store.state, completedChapters: ['alice-ch02'], removedWordbookIds: ['alice-w003'] })
+    store.replaceState({ ...store.state, completedChapters: ['alice-ch02'], removedWordbookIds: ['alice-w003'], readingPositions: { 'alice-ch02': 75 } })
     expect(store.state.completedChapters).toEqual(['alice-ch02'])
     expect(store.state.removedWordbookIds).toEqual(['alice-w003'])
+    expect(store.state.readingPositions).toEqual({ 'alice-ch02': 75 })
   })
 })

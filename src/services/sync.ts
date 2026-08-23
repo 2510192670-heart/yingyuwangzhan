@@ -6,6 +6,7 @@ export interface LearningSyncState {
   masteredWordIds: string[]
   wordbookIds: string[]
   removedWordbookIds: string[]
+  readingPositions: Record<string, number>
   lastBookId: string | null
   lastChapterId: string | null
 }
@@ -21,6 +22,7 @@ export interface CloudLearningRows {
   masteredWordIds: string[]
   wordbookIds: string[]
   removedWordbookIds: string[]
+  readingPositions: Record<string, number>
   lastBookId: string | null
   lastChapterId: string | null
 }
@@ -36,12 +38,17 @@ export function mergeCloudState(local: LearningSyncState, cloud: CloudLearningRo
   ])
   const wordbookIds = unique([...local.wordbookIds, ...cloud.wordbookIds])
     .filter((wordId) => !removedWordbookIds.includes(wordId))
+  const readingPositions = { ...(local.readingPositions ?? {}) }
+  for (const [chapterId, position] of Object.entries(cloud.readingPositions ?? {})) {
+    readingPositions[chapterId] = Math.max(readingPositions[chapterId] ?? 0, position)
+  }
 
   return {
     completedChapters: unique([...local.completedChapters, ...cloud.completedChapters]),
     masteredWordIds: unique([...local.masteredWordIds, ...cloud.masteredWordIds]),
     wordbookIds,
     removedWordbookIds,
+    readingPositions,
     lastBookId: cloud.lastBookId ?? local.lastBookId,
     lastChapterId: cloud.lastChapterId ?? local.lastChapterId,
   }
@@ -52,7 +59,7 @@ function findBookId(chapterId: string, fallback: string | null) {
 }
 
 export function buildSyncPayload(userId: string, state: LearningSyncState, now = new Date().toISOString()): SyncPayload {
-  const chapterIds = new Set(state.completedChapters)
+  const chapterIds = new Set([...state.completedChapters, ...Object.keys(state.readingPositions ?? {})])
   if (state.lastChapterId) chapterIds.add(state.lastChapterId)
 
   return {
@@ -60,7 +67,7 @@ export function buildSyncPayload(userId: string, state: LearningSyncState, now =
       user_id: userId,
       book_id: findBookId(chapterId, state.lastBookId),
       chapter_id: chapterId,
-      scroll_position: 0,
+      scroll_position: state.readingPositions?.[chapterId] ?? 0,
       completed: state.completedChapters.includes(chapterId),
     })),
     wordMastery: state.masteredWordIds.map((wordId) => ({
@@ -105,7 +112,7 @@ export async function syncLearningState(client: SupabaseClient, userId: string, 
 
 export async function pullLearningState(client: SupabaseClient, userId: string, local: LearningSyncState) {
   const [progressResult, masteryResult, wordbookResult] = await Promise.all([
-    client.from('reading_progress').select('book_id,chapter_id,completed,updated_at').eq('user_id', userId),
+    client.from('reading_progress').select('book_id,chapter_id,completed,scroll_position,updated_at').eq('user_id', userId),
     client.from('word_mastery').select('word_id,status').eq('user_id', userId),
     client.from('wordbook_items').select('word_id,removed_at').eq('user_id', userId),
   ])
@@ -114,7 +121,7 @@ export async function pullLearningState(client: SupabaseClient, userId: string, 
   if (masteryResult.error) throw masteryResult.error
   if (wordbookResult.error) throw wordbookResult.error
 
-  const progressRows = (progressResult.data ?? []) as Array<{ book_id: string; chapter_id: string; completed: boolean; updated_at: string }>
+  const progressRows = (progressResult.data ?? []) as Array<{ book_id: string; chapter_id: string; completed: boolean; scroll_position: number; updated_at: string }>
   const latest = [...progressRows].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0]
 
   return mergeCloudState(local, {
@@ -128,6 +135,7 @@ export async function pullLearningState(client: SupabaseClient, userId: string, 
     removedWordbookIds: ((wordbookResult.data ?? []) as Array<{ word_id: string; removed_at: string | null }>)
       .filter((row) => Boolean(row.removed_at))
       .map((row) => row.word_id),
+    readingPositions: Object.fromEntries(progressRows.map((row) => [row.chapter_id, row.scroll_position ?? 0])),
     lastBookId: latest?.book_id ?? null,
     lastChapterId: latest?.chapter_id ?? null,
   })

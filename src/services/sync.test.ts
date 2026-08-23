@@ -8,6 +8,7 @@ describe('learning sync payload', () => {
       masteredWordIds: ['alice-w001'],
       wordbookIds: ['alice-w002'],
       removedWordbookIds: ['alice-w003'],
+      readingPositions: { 'alice-ch01': 42 },
       lastBookId: 'alice',
       lastChapterId: 'alice-ch01',
     }
@@ -15,7 +16,7 @@ describe('learning sync payload', () => {
     const payload = buildSyncPayload('user-1', state, '2026-08-23T00:00:00.000Z')
 
     expect(payload.readingProgress).toEqual([
-      expect.objectContaining({ user_id: 'user-1', book_id: 'alice', chapter_id: 'alice-ch01', completed: true }),
+      expect.objectContaining({ user_id: 'user-1', book_id: 'alice', chapter_id: 'alice-ch01', completed: true, scroll_position: 42 }),
     ])
     expect(payload.wordMastery).toEqual([
       expect.objectContaining({ user_id: 'user-1', word_id: 'alice-w001', status: 'mastered' }),
@@ -34,6 +35,7 @@ describe('cloud state merge', () => {
       masteredWordIds: [],
       wordbookIds: [],
       removedWordbookIds: [],
+      readingPositions: { 'alice-ch01': 24 },
       lastBookId: 'alice',
       lastChapterId: 'alice-ch01',
     }
@@ -43,6 +45,7 @@ describe('cloud state merge', () => {
       masteredWordIds: ['alice-w001'],
       wordbookIds: ['alice-w002'],
       removedWordbookIds: ['alice-w003'],
+      readingPositions: { 'alice-ch02': 58 },
       lastBookId: 'alice',
       lastChapterId: 'alice-ch02',
     })
@@ -52,6 +55,7 @@ describe('cloud state merge', () => {
     expect(merged.wordbookIds).toEqual(['alice-w002'])
     expect(merged.removedWordbookIds).toEqual(['alice-w003'])
     expect(merged.lastChapterId).toBe('alice-ch02')
+    expect(merged.readingPositions).toEqual({ 'alice-ch01': 24, 'alice-ch02': 58 })
   })
 
   it('does not resurrect a word removed on either device', () => {
@@ -61,6 +65,7 @@ describe('cloud state merge', () => {
         masteredWordIds: [],
         wordbookIds: ['alice-w001'],
         removedWordbookIds: ['alice-w002'],
+        readingPositions: {},
         lastBookId: null,
         lastChapterId: null,
       },
@@ -69,6 +74,7 @@ describe('cloud state merge', () => {
         masteredWordIds: [],
         wordbookIds: ['alice-w002', 'alice-w003'],
         removedWordbookIds: ['alice-w001'],
+        readingPositions: {},
         lastBookId: null,
         lastChapterId: null,
       },
