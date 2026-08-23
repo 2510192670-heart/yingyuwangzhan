@@ -7,6 +7,7 @@ export interface LearningState {
   completedChapters: string[]
   masteredWordIds: string[]
   wordbookIds: string[]
+  removedWordbookIds: string[]
   lastBookId: string | null
   lastChapterId: string | null
 }
@@ -15,6 +16,7 @@ const initialState: LearningState = {
   completedChapters: [],
   masteredWordIds: [],
   wordbookIds: [],
+  removedWordbookIds: [],
   lastBookId: books[0]?.id ?? null,
   lastChapterId: books[0]?.chapters[0]?.id ?? null,
 }
@@ -52,6 +54,7 @@ export const useLearningStore = defineStore('learning', () => {
       completedChapters: [...toRaw(raw.completedChapters)],
       masteredWordIds: [...toRaw(raw.masteredWordIds)],
       wordbookIds: [...toRaw(raw.wordbookIds)],
+      removedWordbookIds: [...toRaw(raw.removedWordbookIds ?? [])],
       lastBookId: raw.lastBookId,
       lastChapterId: raw.lastChapterId,
     }
@@ -71,8 +74,14 @@ export const useLearningStore = defineStore('learning', () => {
 
   function toggleWordbook(wordId: string) {
     const index = state.value.wordbookIds.indexOf(wordId)
-    if (index >= 0) state.value.wordbookIds.splice(index, 1)
-    else state.value.wordbookIds.push(wordId)
+    const removedIndex = state.value.removedWordbookIds.indexOf(wordId)
+    if (index >= 0) {
+      state.value.wordbookIds.splice(index, 1)
+      if (removedIndex < 0) state.value.removedWordbookIds.push(wordId)
+    } else {
+      state.value.wordbookIds.push(wordId)
+      if (removedIndex >= 0) state.value.removedWordbookIds.splice(removedIndex, 1)
+    }
     persist()
   }
 

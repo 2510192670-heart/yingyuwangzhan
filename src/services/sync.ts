@@ -5,6 +5,7 @@ export interface LearningSyncState {
   completedChapters: string[]
   masteredWordIds: string[]
   wordbookIds: string[]
+  removedWordbookIds: string[]
   lastBookId: string | null
   lastChapterId: string | null
 }
@@ -12,13 +13,14 @@ export interface LearningSyncState {
 export interface SyncPayload {
   readingProgress: Array<Record<string, string | boolean | number>>
   wordMastery: Array<Record<string, string | number>>
-  wordbookItems: Array<Record<string, string>>
+  wordbookItems: Array<Record<string, string | null>>
 }
 
 export interface CloudLearningRows {
   completedChapters: string[]
   masteredWordIds: string[]
   wordbookIds: string[]
+  removedWordbookIds: string[]
   lastBookId: string | null
   lastChapterId: string | null
 }
@@ -28,10 +30,18 @@ function unique(values: string[]) {
 }
 
 export function mergeCloudState(local: LearningSyncState, cloud: CloudLearningRows): LearningSyncState {
+  const removedWordbookIds = unique([
+    ...(local.removedWordbookIds ?? []),
+    ...(cloud.removedWordbookIds ?? []),
+  ])
+  const wordbookIds = unique([...local.wordbookIds, ...cloud.wordbookIds])
+    .filter((wordId) => !removedWordbookIds.includes(wordId))
+
   return {
     completedChapters: unique([...local.completedChapters, ...cloud.completedChapters]),
     masteredWordIds: unique([...local.masteredWordIds, ...cloud.masteredWordIds]),
-    wordbookIds: unique([...local.wordbookIds, ...cloud.wordbookIds]),
+    wordbookIds,
+    removedWordbookIds,
     lastBookId: cloud.lastBookId ?? local.lastBookId,
     lastChapterId: cloud.lastChapterId ?? local.lastChapterId,
   }
@@ -41,7 +51,7 @@ function findBookId(chapterId: string, fallback: string | null) {
   return books.find((book) => book.chapters.some((chapter) => chapter.id === chapterId))?.id ?? fallback ?? 'unknown'
 }
 
-export function buildSyncPayload(userId: string, state: LearningSyncState): SyncPayload {
+export function buildSyncPayload(userId: string, state: LearningSyncState, now = new Date().toISOString()): SyncPayload {
   const chapterIds = new Set(state.completedChapters)
   if (state.lastChapterId) chapterIds.add(state.lastChapterId)
 
@@ -59,10 +69,18 @@ export function buildSyncPayload(userId: string, state: LearningSyncState): Sync
       status: 'mastered',
       review_count: 0,
     })),
-    wordbookItems: state.wordbookIds.map((wordId) => ({
-      user_id: userId,
-      word_id: wordId,
-    })),
+    wordbookItems: [
+      ...state.wordbookIds.map((wordId) => ({
+        user_id: userId,
+        word_id: wordId,
+        removed_at: null,
+      })),
+      ...(state.removedWordbookIds ?? []).map((wordId) => ({
+        user_id: userId,
+        word_id: wordId,
+        removed_at: now,
+      })),
+    ],
   }
 }
 
@@ -106,6 +124,9 @@ export async function pullLearningState(client: SupabaseClient, userId: string, 
       .map((row) => row.word_id),
     wordbookIds: ((wordbookResult.data ?? []) as Array<{ word_id: string; removed_at: string | null }>)
       .filter((row) => !row.removed_at)
+      .map((row) => row.word_id),
+    removedWordbookIds: ((wordbookResult.data ?? []) as Array<{ word_id: string; removed_at: string | null }>)
+      .filter((row) => Boolean(row.removed_at))
       .map((row) => row.word_id),
     lastBookId: latest?.book_id ?? null,
     lastChapterId: latest?.chapter_id ?? null,

@@ -7,11 +7,12 @@ describe('learning sync payload', () => {
       completedChapters: ['alice-ch01'],
       masteredWordIds: ['alice-w001'],
       wordbookIds: ['alice-w002'],
+      removedWordbookIds: ['alice-w003'],
       lastBookId: 'alice',
       lastChapterId: 'alice-ch01',
     }
 
-    const payload = buildSyncPayload('user-1', state)
+    const payload = buildSyncPayload('user-1', state, '2026-08-23T00:00:00.000Z')
 
     expect(payload.readingProgress).toEqual([
       expect.objectContaining({ user_id: 'user-1', book_id: 'alice', chapter_id: 'alice-ch01', completed: true }),
@@ -20,7 +21,8 @@ describe('learning sync payload', () => {
       expect.objectContaining({ user_id: 'user-1', word_id: 'alice-w001', status: 'mastered' }),
     ])
     expect(payload.wordbookItems).toEqual([
-      expect.objectContaining({ user_id: 'user-1', word_id: 'alice-w002' }),
+      expect.objectContaining({ user_id: 'user-1', word_id: 'alice-w002', removed_at: null }),
+      expect.objectContaining({ user_id: 'user-1', word_id: 'alice-w003', removed_at: '2026-08-23T00:00:00.000Z' }),
     ])
   })
 })
@@ -31,6 +33,7 @@ describe('cloud state merge', () => {
       completedChapters: ['alice-ch01'],
       masteredWordIds: [],
       wordbookIds: [],
+      removedWordbookIds: [],
       lastBookId: 'alice',
       lastChapterId: 'alice-ch01',
     }
@@ -39,6 +42,7 @@ describe('cloud state merge', () => {
       completedChapters: ['alice-ch02'],
       masteredWordIds: ['alice-w001'],
       wordbookIds: ['alice-w002'],
+      removedWordbookIds: ['alice-w003'],
       lastBookId: 'alice',
       lastChapterId: 'alice-ch02',
     })
@@ -46,6 +50,31 @@ describe('cloud state merge', () => {
     expect(merged.completedChapters).toEqual(['alice-ch01', 'alice-ch02'])
     expect(merged.masteredWordIds).toEqual(['alice-w001'])
     expect(merged.wordbookIds).toEqual(['alice-w002'])
+    expect(merged.removedWordbookIds).toEqual(['alice-w003'])
     expect(merged.lastChapterId).toBe('alice-ch02')
+  })
+
+  it('does not resurrect a word removed on either device', () => {
+    const merged = mergeCloudState(
+      {
+        completedChapters: [],
+        masteredWordIds: [],
+        wordbookIds: ['alice-w001'],
+        removedWordbookIds: ['alice-w002'],
+        lastBookId: null,
+        lastChapterId: null,
+      },
+      {
+        completedChapters: [],
+        masteredWordIds: [],
+        wordbookIds: ['alice-w002', 'alice-w003'],
+        removedWordbookIds: ['alice-w001'],
+        lastBookId: null,
+        lastChapterId: null,
+      },
+    )
+
+    expect(merged.wordbookIds).toEqual(['alice-w003'])
+    expect(merged.removedWordbookIds).toEqual(['alice-w002', 'alice-w001'])
   })
 })
