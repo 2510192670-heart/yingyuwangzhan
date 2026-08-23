@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 .agents/
+qa-*.png
 *.local
 .env
 .env.*
