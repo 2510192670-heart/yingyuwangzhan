@@ -3,15 +3,17 @@ export interface StorageLike {
   setItem(key: string, value: string): void
 }
 
-export function createJsonStore<T>(storage: StorageLike, userId: string, initial: T) {
-  const key = `hehe-reading:${userId}:learning`
+export function createJsonStore<T>(storage: StorageLike, userId: string, initial: T, scope = 'learning') {
+  const key = `hehe-reading:${userId}:${scope}`
 
   return {
     load(): T {
       const raw = storage.getItem(key)
       if (!raw) return structuredClone(initial)
       try {
-        return { ...structuredClone(initial), ...JSON.parse(raw) } as T
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed) || Array.isArray(initial)) return parsed as T
+        return { ...structuredClone(initial), ...parsed } as T
       } catch {
         return structuredClone(initial)
       }

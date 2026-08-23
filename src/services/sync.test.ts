@@ -121,4 +121,24 @@ describe('cloud state merge', () => {
     expect(merged.wordbookIds).toEqual(['alice-w003'])
     expect(merged.removedWordbookIds).toEqual(['alice-w002', 'alice-w001'])
   })
+
+  it('merges review records by latest result and deduplicates study sessions', () => {
+    const merged = mergeCloudState(
+      {
+        completedChapters: [], masteredWordIds: [], wordbookIds: [], removedWordbookIds: [], readingPositions: {}, studySeconds: 0, studyDates: [], lastBookId: null, lastChapterId: null,
+        preferences: { fontSize: 20, lineHeight: 2, theme: 'paper', readMode: 'study' }, readingHistory: [],
+        reviewRecords: { 'alice-w001': { wordId: 'alice-w001', reviewCount: 2, lastResult: 'again', lastReviewedAt: '2026-08-23T10:00:00.000Z' } },
+        studySessions: [{ id: 'session-1', date: '2026-08-23', durationSeconds: 30 }],
+      },
+      {
+        completedChapters: [], masteredWordIds: [], wordbookIds: [], removedWordbookIds: [], readingPositions: {}, studySeconds: 0, studyDates: [], lastBookId: null, lastChapterId: null,
+        reviewRecords: { 'alice-w001': { wordId: 'alice-w001', reviewCount: 3, lastResult: 'mastered', lastReviewedAt: '2026-08-24T10:00:00.000Z' } },
+        studySessions: [{ id: 'session-1', date: '2026-08-23', durationSeconds: 30 }, { id: 'session-2', date: '2026-08-24', durationSeconds: 45 }],
+      },
+    )
+    expect(merged.reviewRecords['alice-w001']).toMatchObject({ reviewCount: 3, lastResult: 'mastered' })
+    expect(merged.studySessions).toHaveLength(2)
+    expect(merged.studySeconds).toBe(75)
+    expect(merged.studyDates).toEqual(['2026-08-23', '2026-08-24'])
+  })
 })

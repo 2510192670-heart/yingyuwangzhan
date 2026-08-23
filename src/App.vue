@@ -8,6 +8,7 @@ import WordbookView from './components/WordbookView.vue'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { ensureAnonymousSession } from './services/auth'
 import { pullLearningState, syncLearningState } from './services/sync'
+import { createSyncQueue } from './services/offlineQueue'
 import { getAdjacentChapterId, getBookProgress, tokenizeReadingContent, type ReadingToken } from './services/reading'
 import { useLearningStore } from './stores/learning'
 import type { ReadingPreferences } from './stores/learning'
@@ -24,6 +25,7 @@ const cloudStatus = ref('本地优先')
 let cloudUserId: string | null = null
 let syncTimer: number | undefined
 let positionTimer: number | undefined
+let syncInFlight = false
 const studyStartedAt = ref<number | null>(null)
 
 const selectedChapter = computed(() => selectedBook.value && selectedChapterId.value ? selectedBook.value.chapters.find((chapter) => chapter.id === selectedChapterId.value) ?? null : null)
@@ -65,11 +67,12 @@ function moveChapter(delta: number) {
   if (delta > 0) learning.markChapterComplete(selectedChapterId.value)
   selectChapter(nextId)
 }
-async function syncCloud() { if (!isSupabaseConfigured) return; try { cloudUserId ??= (await ensureAnonymousSession()).user.id; const merged = await pullLearningState(supabase, cloudUserId, learning.state); learning.replaceState(merged); await syncLearningState(supabase, cloudUserId, merged); cloudStatus.value = '已同步' } catch (error) { console.warn('[Learning] 云同步不可用，继续使用本地数据', error); cloudStatus.value = '离线模式' } }
+async function syncCloud() { if (!isSupabaseConfigured || syncInFlight) return; syncInFlight = true; try { cloudUserId ??= (await ensureAnonymousSession()).user.id; const queue = createSyncQueue(window.localStorage, cloudUserId); if (queue.pending().some((entry) => entry.userId === cloudUserId)) queue.markAttempt(cloudUserId, '正在重试同步'); const merged = await pullLearningState(supabase, cloudUserId, learning.state); learning.replaceState(merged); await syncLearningState(supabase, cloudUserId, merged); queue.remove(cloudUserId); cloudStatus.value = '已同步' } catch (error) { console.warn('[Learning] 云同步不可用，继续使用本地数据', error); if (cloudUserId) { const queue = createSyncQueue(window.localStorage, cloudUserId); queue.enqueue(cloudUserId, error instanceof Error ? error.message : '同步失败'); cloudStatus.value = `离线模式 · ${queue.pending().length} 待同步` } else cloudStatus.value = '离线模式' } finally { syncInFlight = false } }
 function scheduleCloudSync() { if (!isSupabaseConfigured) return; window.clearTimeout(syncTimer); syncTimer = window.setTimeout(() => void syncCloud(), 500) }
+function handleOnline() { void syncCloud() }
 watch(() => learning.state, scheduleCloudSync, { deep: true })
-onMounted(async () => { learning.load(); await syncCloud() })
-onBeforeUnmount(flushStudyTime)
+onMounted(async () => { learning.load(); window.addEventListener('online', handleOnline); await syncCloud() })
+onBeforeUnmount(() => { flushStudyTime(); window.removeEventListener('online', handleOnline) })
 </script>
 
 <template>
