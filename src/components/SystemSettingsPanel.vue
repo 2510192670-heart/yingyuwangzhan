@@ -1,0 +1,16 @@
+<script setup lang="ts">
+defineProps<{ customBookCount: number; syncStatus: string }>()
+const emit = defineEmits<{ export: []; import: []; clear: [] }>()
+</script>
+
+<template>
+  <section class="profile-panel system-settings-panel">
+    <div class="profile-panel-heading"><div><p class="eyebrow">DATA & SETTINGS</p><h3>系统设置</h3></div><span>本地优先</span></div>
+    <div class="system-status"><span class="sync-dot" :class="{ offline: syncStatus.startsWith('离线') }" /><span>{{ syncStatus }}</span><small>自定义书籍 {{ customBookCount }} 本</small></div>
+    <div class="settings-actions-grid">
+      <button class="settings-action" @click="emit('export')"><strong>导出学习数据</strong><span>备份阅读进度、生词本、设置和自定义书籍</span></button>
+      <button class="settings-action" @click="emit('import')"><strong>导入学习数据</strong><span>从备份文件恢复个人学习状态</span></button>
+      <button class="settings-action danger" @click="emit('clear')"><strong>清理本地数据</strong><span>仅清除本浏览器中的学习数据和自定义书籍</span></button>
+    </div>
+  </section>
+</template>
