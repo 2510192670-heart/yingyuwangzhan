@@ -1,12 +1,13 @@
 <script setup lang="ts">
-defineProps<{ customBookCount: number; syncStatus: string }>()
-const emit = defineEmits<{ export: []; import: []; clear: [] }>()
+defineProps<{ customBookCount: number; syncStatus: string; pendingSyncCount: number; syncError: string }>()
+const emit = defineEmits<{ export: []; import: []; clear: []; retrySync: [] }>()
 </script>
 
 <template>
   <section class="profile-panel system-settings-panel">
     <div class="profile-panel-heading"><div><p class="eyebrow">DATA & SETTINGS</p><h3>系统设置</h3></div><span>本地优先</span></div>
     <div class="system-status"><span class="sync-dot" :class="{ offline: syncStatus.startsWith('离线') }" /><span>{{ syncStatus }}</span><small>自定义书籍 {{ customBookCount }} 本</small></div>
+    <div class="sync-detail"><div><strong>{{ pendingSyncCount }}</strong><span>待同步队列</span></div><p v-if="syncError">最近错误：{{ syncError }}</p><button v-if="pendingSyncCount || syncError" @click="emit('retrySync')">立即重试</button></div>
     <div class="settings-actions-grid">
       <button class="settings-action" @click="emit('export')"><strong>导出学习数据</strong><span>备份阅读进度、生词本、设置和自定义书籍</span></button>
       <button class="settings-action" @click="emit('import')"><strong>导入学习数据</strong><span>从备份文件恢复个人学习状态</span></button>
