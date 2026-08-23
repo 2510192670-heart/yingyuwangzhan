@@ -1,0 +1,11 @@
+{
+  "name": "翯翯英语阅读",
+  "short_name": "翯翯阅读",
+  "description": "在故事里学习英语，记录每一次阅读。",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbfaf7",
+  "theme_color": "#191817",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
