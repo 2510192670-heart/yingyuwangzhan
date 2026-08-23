@@ -9,6 +9,12 @@ export function getBookProgress(book: { chapters: Array<{ id: string }> }, compl
   return Math.round((book.chapters.filter((chapter) => completed.has(chapter.id)).length / book.chapters.length) * 100)
 }
 
+export function getAdjacentChapterId(chapters: Array<{ id: string }>, currentId: string | null, delta: number) {
+  if (!chapters.length) return null
+  const currentIndex = Math.max(0, chapters.findIndex((chapter) => chapter.id === currentId))
+  return chapters[currentIndex + delta]?.id ?? null
+}
+
 export function tokenizeReadingContent(content: string, vocabulary: Set<string>): ReadingToken[] {
   const tokens: ReadingToken[] = []
   const pattern = /【([^】]+)】/g
