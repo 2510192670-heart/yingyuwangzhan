@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildSyncPayload, type LearningSyncState } from './sync'
+import { buildSyncPayload, mergeCloudState, type LearningSyncState } from './sync'
 
 describe('learning sync payload', () => {
   it('maps local learning state to user-owned cloud rows', () => {
@@ -22,5 +22,30 @@ describe('learning sync payload', () => {
     expect(payload.wordbookItems).toEqual([
       expect.objectContaining({ user_id: 'user-1', word_id: 'alice-w002' }),
     ])
+  })
+})
+
+describe('cloud state merge', () => {
+  it('preserves local progress while adding newer cloud learning rows', () => {
+    const local: LearningSyncState = {
+      completedChapters: ['alice-ch01'],
+      masteredWordIds: [],
+      wordbookIds: [],
+      lastBookId: 'alice',
+      lastChapterId: 'alice-ch01',
+    }
+
+    const merged = mergeCloudState(local, {
+      completedChapters: ['alice-ch02'],
+      masteredWordIds: ['alice-w001'],
+      wordbookIds: ['alice-w002'],
+      lastBookId: 'alice',
+      lastChapterId: 'alice-ch02',
+    })
+
+    expect(merged.completedChapters).toEqual(['alice-ch01', 'alice-ch02'])
+    expect(merged.masteredWordIds).toEqual(['alice-w001'])
+    expect(merged.wordbookIds).toEqual(['alice-w002'])
+    expect(merged.lastChapterId).toBe('alice-ch02')
   })
 })

@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, toRaw } from 'vue'
 import { defineStore } from 'pinia'
 import { books } from '../data/books'
 import { createJsonStore } from '../services/localStore'
@@ -46,6 +46,18 @@ export const useLearningStore = defineStore('learning', () => {
     createJsonStore<LearningState>(window.localStorage, getBrowserUserId(), initialState).save(state.value)
   }
 
+  function replaceState(next: LearningState) {
+    const raw = toRaw(next)
+    state.value = {
+      completedChapters: [...toRaw(raw.completedChapters)],
+      masteredWordIds: [...toRaw(raw.masteredWordIds)],
+      wordbookIds: [...toRaw(raw.wordbookIds)],
+      lastBookId: raw.lastBookId,
+      lastChapterId: raw.lastChapterId,
+    }
+    persist()
+  }
+
   function rememberChapter(bookId: string, chapterId: string) {
     state.value.lastBookId = bookId
     state.value.lastChapterId = chapterId
@@ -71,5 +83,5 @@ export const useLearningStore = defineStore('learning', () => {
     persist()
   }
 
-  return { state, ready, completedCount, wordbookCount, load, rememberChapter, markChapterComplete, toggleWordbook, toggleMastery }
+  return { state, ready, completedCount, wordbookCount, load, replaceState, rememberChapter, markChapterComplete, toggleWordbook, toggleMastery }
 })

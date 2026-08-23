@@ -15,6 +15,28 @@ export interface SyncPayload {
   wordbookItems: Array<Record<string, string>>
 }
 
+export interface CloudLearningRows {
+  completedChapters: string[]
+  masteredWordIds: string[]
+  wordbookIds: string[]
+  lastBookId: string | null
+  lastChapterId: string | null
+}
+
+function unique(values: string[]) {
+  return [...new Set(values)]
+}
+
+export function mergeCloudState(local: LearningSyncState, cloud: CloudLearningRows): LearningSyncState {
+  return {
+    completedChapters: unique([...local.completedChapters, ...cloud.completedChapters]),
+    masteredWordIds: unique([...local.masteredWordIds, ...cloud.masteredWordIds]),
+    wordbookIds: unique([...local.wordbookIds, ...cloud.wordbookIds]),
+    lastBookId: cloud.lastBookId ?? local.lastBookId,
+    lastChapterId: cloud.lastChapterId ?? local.lastChapterId,
+  }
+}
+
 function findBookId(chapterId: string, fallback: string | null) {
   return books.find((book) => book.chapters.some((chapter) => chapter.id === chapterId))?.id ?? fallback ?? 'unknown'
 }
@@ -61,4 +83,31 @@ export async function syncLearningState(client: SupabaseClient, userId: string, 
   }
 
   return payload
+}
+
+export async function pullLearningState(client: SupabaseClient, userId: string, local: LearningSyncState) {
+  const [progressResult, masteryResult, wordbookResult] = await Promise.all([
+    client.from('reading_progress').select('book_id,chapter_id,completed,updated_at').eq('user_id', userId),
+    client.from('word_mastery').select('word_id,status').eq('user_id', userId),
+    client.from('wordbook_items').select('word_id,removed_at').eq('user_id', userId),
+  ])
+
+  if (progressResult.error) throw progressResult.error
+  if (masteryResult.error) throw masteryResult.error
+  if (wordbookResult.error) throw wordbookResult.error
+
+  const progressRows = (progressResult.data ?? []) as Array<{ book_id: string; chapter_id: string; completed: boolean; updated_at: string }>
+  const latest = [...progressRows].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0]
+
+  return mergeCloudState(local, {
+    completedChapters: progressRows.filter((row) => row.completed).map((row) => row.chapter_id),
+    masteredWordIds: ((masteryResult.data ?? []) as Array<{ word_id: string; status: string }>)
+      .filter((row) => row.status === 'mastered')
+      .map((row) => row.word_id),
+    wordbookIds: ((wordbookResult.data ?? []) as Array<{ word_id: string; removed_at: string | null }>)
+      .filter((row) => !row.removed_at)
+      .map((row) => row.word_id),
+    lastBookId: latest?.book_id ?? null,
+    lastChapterId: latest?.chapter_id ?? null,
+  })
 }

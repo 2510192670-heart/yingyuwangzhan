@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { books, type Book, type Word } from './data/books'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { ensureAnonymousSession } from './services/auth'
-import { syncLearningState } from './services/sync'
+import { pullLearningState, syncLearningState } from './services/sync'
 import { tokenizeReadingContent, type ReadingToken } from './services/reading'
 import { useLearningStore } from './stores/learning'
 
@@ -67,7 +67,9 @@ async function syncCloud() {
   if (!isSupabaseConfigured) return
   try {
     cloudUserId ??= (await ensureAnonymousSession()).user.id
-    await syncLearningState(supabase, cloudUserId, learning.state)
+    const merged = await pullLearningState(supabase, cloudUserId, learning.state)
+    learning.replaceState(merged)
+    await syncLearningState(supabase, cloudUserId, merged)
     cloudStatus.value = '已同步'
   } catch (error) {
     console.warn('[Learning] 云同步不可用，继续使用本地数据', error)
