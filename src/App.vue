@@ -8,7 +8,7 @@ import WordbookView from './components/WordbookView.vue'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { ensureAnonymousSession } from './services/auth'
 import { pullLearningState, syncLearningState } from './services/sync'
-import { tokenizeReadingContent, type ReadingToken } from './services/reading'
+import { getBookProgress, tokenizeReadingContent, type ReadingToken } from './services/reading'
 import { useLearningStore } from './stores/learning'
 
 type Tab = 'shelf' | 'wordbook' | 'profile'
@@ -26,6 +26,7 @@ const selectedChapter = computed(() => selectedBook.value && selectedChapterId.v
 const wordbookWords = computed(() => books.flatMap((book) => book.words).filter((word) => learning.state.wordbookIds.includes(word.id)))
 const totalChapters = computed(() => books.reduce((total, book) => total + book.chapters.length, 0))
 const activeTitle = computed(() => ({ shelf: '选一本书，开始今天的故事', wordbook: '把遇见的词，留在自己的语言里', profile: '记录每一次靠近文字的时刻' })[activeTab.value])
+const currentBookProgress = computed(() => getBookProgress(books[0], learning.state.completedChapters))
 
 function openBook(book: Book) { selectedBook.value = book; selectedChapterId.value = learning.state.lastBookId === book.id ? learning.state.lastChapterId : book.chapters[0]?.id ?? null; if (selectedChapterId.value) learning.rememberChapter(book.id, selectedChapterId.value) }
 function closeReader() { selectedBook.value = null; selectedChapterId.value = null; selectedWord.value = null }
@@ -45,7 +46,7 @@ onMounted(async () => { learning.load(); await syncCloud() })
   <div class="app-shell">
     <aside class="sidebar"><div class="brand"><span class="brand-mark">翯</span><span>HEHE<br /><small>READING ROOM</small></span></div><div class="sidebar-rule" /><nav class="nav-list" aria-label="主导航"><button :class="['nav-item', { active: activeTab === 'shelf' }]" @click="activeTab = 'shelf'"><AppIcon name="shelf" /><span>书架</span></button><button :class="['nav-item', { active: activeTab === 'wordbook' }]" @click="activeTab = 'wordbook'"><AppIcon name="bookmark" /><span>生词本</span></button><button :class="['nav-item', { active: activeTab === 'profile' }]" @click="activeTab = 'profile'"><AppIcon name="user" /><span>我的</span></button></nav><div class="sidebar-bottom"><span class="sync-dot" :class="{ offline: cloudStatus === '离线模式' }" />{{ cloudStatus }}<small>学习数据按用户隔离</small></div></aside>
     <main class="main-content"><header class="topbar"><div><p class="eyebrow">HEHE READING ROOM</p><h1>{{ activeTitle }}</h1></div><div class="header-stat"><strong>{{ learning.wordbookCount }}</strong><span>生词</span></div></header>
-      <section v-if="activeTab === 'shelf'" class="page-section shelf-page"><div class="continue-card" @click="openBook(books[0])"><div class="continue-cover" :style="{ background: books[0].accent }">爽</div><div class="continue-copy"><p class="section-kicker">继续阅读</p><h2>{{ books[0].title }}</h2><p>{{ books[0].chapters[0]?.title }}</p><div class="progress-line"><i style="width: 0%" /><span>0%</span></div></div><button class="round-arrow" aria-label="继续阅读"><AppIcon name="arrow" :size="22" /></button></div><div class="section-heading"><div><h2>我的书架 <em>{{ books.length }}</em></h2><p>每一本，都是一段可以慢慢读完的故事。</p></div><div class="view-switch"><button class="selected"><AppIcon name="grid" :size="17" /></button><button><AppIcon name="list" :size="17" /></button></div></div><div class="book-grid"><BookCard v-for="(book, index) in books" :key="book.id" :book="book" :index="index" @open="openBook(book)" /></div></section>
+      <section v-if="activeTab === 'shelf'" class="page-section shelf-page"><div class="continue-card" @click="openBook(books[0])"><div class="continue-cover" :style="{ background: books[0].accent }">爽</div><div class="continue-copy"><p class="section-kicker">继续阅读</p><h2>{{ books[0].title }}</h2><p>{{ books[0].chapters[0]?.title }}</p><div class="progress-line"><i :style="{ width: `${currentBookProgress}%` }" /><span>{{ currentBookProgress }}%</span></div></div><button class="round-arrow" aria-label="继续阅读"><AppIcon name="arrow" :size="22" /></button></div><div class="section-heading"><div><h2>我的书架 <em>{{ books.length }}</em></h2><p>每一本，都是一段可以慢慢读完的故事。</p></div><div class="view-switch"><button class="selected"><AppIcon name="grid" :size="17" /></button><button><AppIcon name="list" :size="17" /></button></div></div><div class="book-grid"><BookCard v-for="(book, index) in books" :key="book.id" :book="book" :index="index" :progress="getBookProgress(book, learning.state.completedChapters)" @open="openBook(book)" /></div></section>
       <WordbookView v-else-if="activeTab === 'wordbook'" :words="wordbookWords" :mastered-word-ids="learning.state.masteredWordIds" @mastery="learning.toggleMastery($event.id)" @remove="learning.toggleWordbook($event.id)" @shelf="activeTab = 'shelf'" />
       <ProfileView v-else :mastered="learning.state.masteredWordIds.length" :wordbook="learning.wordbookCount" :completed="learning.completedCount" :total-chapters="totalChapters" @navigate="activeTab = $event" />
     </main>

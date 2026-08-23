@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { tokenizeReadingContent } from './reading'
+import { getBookProgress, tokenizeReadingContent } from './reading'
 
 describe('reading content tokenizer', () => {
   it('turns marked vocabulary into interactive word tokens', () => {
@@ -9,5 +9,10 @@ describe('reading content tokenizer', () => {
       { type: 'word', value: 'curious' },
       { type: 'text', value: '，然后继续走。' },
     ])
+  })
+
+  it('calculates book progress from completed chapters', () => {
+    expect(getBookProgress({ chapters: [{ id: 'one' }, { id: 'two' }, { id: 'three' }] }, ['one', 'three'])).toBe(67)
+    expect(getBookProgress({ chapters: [] }, [])).toBe(0)
   })
 })

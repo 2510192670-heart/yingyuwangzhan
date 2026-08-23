@@ -3,6 +3,12 @@ export interface ReadingToken {
   value: string
 }
 
+export function getBookProgress(book: { chapters: Array<{ id: string }> }, completedChapterIds: string[]) {
+  if (!book.chapters.length) return 0
+  const completed = new Set(completedChapterIds)
+  return Math.round((book.chapters.filter((chapter) => completed.has(chapter.id)).length / book.chapters.length) * 100)
+}
+
 export function tokenizeReadingContent(content: string, vocabulary: Set<string>): ReadingToken[] {
   const tokens: ReadingToken[] = []
   const pattern = /【([^】]+)】/g
