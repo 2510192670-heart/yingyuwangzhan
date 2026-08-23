@@ -120,6 +120,11 @@ export const useLearningStore = defineStore('learning', () => {
     persist()
   }
 
+  function clearReadingHistory() {
+    state.value.readingHistory = []
+    persist()
+  }
+
   function updatePreferences(next: Partial<ReadingPreferences>) {
     state.value.preferences = { ...state.value.preferences, ...next }
     persist()
@@ -176,5 +181,5 @@ export const useLearningStore = defineStore('learning', () => {
     persist()
   }
 
-  return { state, ready, completedCount, wordbookCount, load, replaceState, rememberChapter, updatePreferences, rememberReadingPosition, recordStudyTime, markChapterComplete, toggleWordbook, toggleMastery, recordReview }
+  return { state, ready, completedCount, wordbookCount, load, replaceState, rememberChapter, clearReadingHistory, updatePreferences, rememberReadingPosition, recordStudyTime, markChapterComplete, toggleWordbook, toggleMastery, recordReview }
 })

@@ -60,6 +60,17 @@ describe('learning store', () => {
     expect(store.state.readingHistory[0]).toMatchObject({ bookId: 'alice', chapterId: 'alice-ch01' })
   })
 
+  it('clears reading history without changing learning progress', () => {
+    const store = useLearningStore()
+    store.load()
+    store.markChapterComplete('alice-ch01')
+    store.rememberChapter('alice', 'alice-ch01')
+    store.clearReadingHistory()
+    expect(store.state.readingHistory).toEqual([])
+    expect(store.state.completedChapters).toEqual(['alice-ch01'])
+    expect(store.state.lastBookId).toBe('alice')
+  })
+
   it('records review outcomes per word and keeps the latest result', () => {
     const store = useLearningStore()
     store.load()
