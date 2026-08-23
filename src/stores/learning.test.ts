@@ -39,4 +39,14 @@ describe('learning store', () => {
     expect(store.state.removedWordbookIds).toEqual(['alice-w003'])
     expect(store.state.readingPositions).toEqual({ 'alice-ch02': 75 })
   })
+
+  it('records study time and unique study days', () => {
+    const store = useLearningStore()
+    store.load()
+    store.recordStudyTime(90, '2026-08-23')
+    store.recordStudyTime(30, '2026-08-23')
+    store.recordStudyTime(60, '2026-08-24')
+    expect(store.state.studySeconds).toBe(180)
+    expect(store.state.studyDates).toEqual(['2026-08-23', '2026-08-24'])
+  })
 })

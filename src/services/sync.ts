@@ -7,6 +7,8 @@ export interface LearningSyncState {
   wordbookIds: string[]
   removedWordbookIds: string[]
   readingPositions: Record<string, number>
+  studySeconds: number
+  studyDates: string[]
   lastBookId: string | null
   lastChapterId: string | null
 }
@@ -23,6 +25,8 @@ export interface CloudLearningRows {
   wordbookIds: string[]
   removedWordbookIds: string[]
   readingPositions: Record<string, number>
+  studySeconds: number
+  studyDates: string[]
   lastBookId: string | null
   lastChapterId: string | null
 }
@@ -49,6 +53,8 @@ export function mergeCloudState(local: LearningSyncState, cloud: CloudLearningRo
     wordbookIds,
     removedWordbookIds,
     readingPositions,
+    studySeconds: local.studySeconds ?? 0,
+    studyDates: [...(local.studyDates ?? [])],
     lastBookId: cloud.lastBookId ?? local.lastBookId,
     lastChapterId: cloud.lastChapterId ?? local.lastChapterId,
   }
@@ -136,6 +142,8 @@ export async function pullLearningState(client: SupabaseClient, userId: string, 
       .filter((row) => Boolean(row.removed_at))
       .map((row) => row.word_id),
     readingPositions: Object.fromEntries(progressRows.map((row) => [row.chapter_id, row.scroll_position ?? 0])),
+    studySeconds: 0,
+    studyDates: [],
     lastBookId: latest?.book_id ?? null,
     lastChapterId: latest?.chapter_id ?? null,
   })

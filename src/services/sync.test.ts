@@ -9,6 +9,8 @@ describe('learning sync payload', () => {
       wordbookIds: ['alice-w002'],
       removedWordbookIds: ['alice-w003'],
       readingPositions: { 'alice-ch01': 42 },
+      studySeconds: 0,
+      studyDates: [],
       lastBookId: 'alice',
       lastChapterId: 'alice-ch01',
     }
@@ -36,6 +38,8 @@ describe('cloud state merge', () => {
       wordbookIds: [],
       removedWordbookIds: [],
       readingPositions: { 'alice-ch01': 24 },
+      studySeconds: 120,
+      studyDates: ['2026-08-23'],
       lastBookId: 'alice',
       lastChapterId: 'alice-ch01',
     }
@@ -46,6 +50,8 @@ describe('cloud state merge', () => {
       wordbookIds: ['alice-w002'],
       removedWordbookIds: ['alice-w003'],
       readingPositions: { 'alice-ch02': 58 },
+      studySeconds: 0,
+      studyDates: [],
       lastBookId: 'alice',
       lastChapterId: 'alice-ch02',
     })
@@ -56,6 +62,7 @@ describe('cloud state merge', () => {
     expect(merged.removedWordbookIds).toEqual(['alice-w003'])
     expect(merged.lastChapterId).toBe('alice-ch02')
     expect(merged.readingPositions).toEqual({ 'alice-ch01': 24, 'alice-ch02': 58 })
+    expect(merged.studySeconds).toBe(120)
   })
 
   it('does not resurrect a word removed on either device', () => {
@@ -66,6 +73,8 @@ describe('cloud state merge', () => {
         wordbookIds: ['alice-w001'],
         removedWordbookIds: ['alice-w002'],
         readingPositions: {},
+        studySeconds: 0,
+        studyDates: [],
         lastBookId: null,
         lastChapterId: null,
       },
@@ -75,6 +84,8 @@ describe('cloud state merge', () => {
         wordbookIds: ['alice-w002', 'alice-w003'],
         removedWordbookIds: ['alice-w001'],
         readingPositions: {},
+        studySeconds: 0,
+        studyDates: [],
         lastBookId: null,
         lastChapterId: null,
       },
