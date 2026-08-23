@@ -25,6 +25,12 @@ export interface ReviewRecord {
   lastReviewedAt: string
 }
 
+export interface StudySessionRecord {
+  id: string
+  date: string
+  durationSeconds: number
+}
+
 export interface LearningState {
   completedChapters: string[]
   masteredWordIds: string[]
@@ -36,6 +42,7 @@ export interface LearningState {
   preferences: ReadingPreferences
   readingHistory: ReadingHistoryItem[]
   reviewRecords: Record<string, ReviewRecord>
+  studySessions: StudySessionRecord[]
   lastBookId: string | null
   lastChapterId: string | null
 }
@@ -51,6 +58,7 @@ const initialState: LearningState = {
   preferences: { fontSize: 20, lineHeight: 2, theme: 'paper', readMode: 'study' },
   readingHistory: [],
   reviewRecords: {},
+  studySessions: [],
   lastBookId: books[0]?.id ?? null,
   lastChapterId: books[0]?.chapters[0]?.id ?? null,
 }
@@ -95,6 +103,7 @@ export const useLearningStore = defineStore('learning', () => {
       preferences: { ...initialState.preferences, ...toRaw(raw.preferences ?? {}) },
       readingHistory: [...toRaw(raw.readingHistory ?? [])],
       reviewRecords: { ...toRaw(raw.reviewRecords ?? {}) },
+      studySessions: [...toRaw(raw.studySessions ?? [])],
       lastBookId: raw.lastBookId,
       lastChapterId: raw.lastChapterId,
     }
@@ -127,6 +136,7 @@ export const useLearningStore = defineStore('learning', () => {
     if (seconds <= 0) return
     state.value.studySeconds += Math.round(seconds)
     if (!state.value.studyDates.includes(date)) state.value.studyDates.push(date)
+    state.value.studySessions.push({ id: crypto.randomUUID(), date, durationSeconds: Math.round(seconds) })
     persist()
   }
 

@@ -16,6 +16,7 @@ describe('learning sync payload', () => {
       preferences: { fontSize: 20, lineHeight: 2, theme: 'paper', readMode: 'study' },
       readingHistory: [],
       reviewRecords: {},
+      studySessions: [{ id: 'session-1', date: '2026-08-23', durationSeconds: 90 }],
     }
 
     const payload = buildSyncPayload('user-1', state, '2026-08-23T00:00:00.000Z')
@@ -29,6 +30,21 @@ describe('learning sync payload', () => {
     expect(payload.wordbookItems).toEqual([
       expect.objectContaining({ user_id: 'user-1', word_id: 'alice-w002', removed_at: null }),
       expect.objectContaining({ user_id: 'user-1', word_id: 'alice-w003', removed_at: '2026-08-23T00:00:00.000Z' }),
+    ])
+    expect(payload.studySessions).toEqual([
+      { user_id: 'user-1', client_id: 'session-1', study_date: '2026-08-23', duration_seconds: 90 },
+    ])
+  })
+
+  it('maps review outcomes to idempotent mastery rows', () => {
+    const state: LearningSyncState = {
+      completedChapters: [], masteredWordIds: ['alice-w001'], wordbookIds: [], removedWordbookIds: [], readingPositions: {},
+      studySeconds: 0, studyDates: [], lastBookId: null, lastChapterId: null,
+      preferences: { fontSize: 20, lineHeight: 2, theme: 'paper', readMode: 'study' }, readingHistory: [],
+      reviewRecords: { 'alice-w001': { wordId: 'alice-w001', reviewCount: 3, lastResult: 'mastered', lastReviewedAt: '2026-08-23T10:00:00.000Z' } }, studySessions: [],
+    }
+    expect(buildSyncPayload('user-1', state).wordMastery).toEqual([
+      expect.objectContaining({ user_id: 'user-1', word_id: 'alice-w001', status: 'mastered', review_count: 3, last_result: 'mastered' }),
     ])
   })
 })
@@ -48,6 +64,7 @@ describe('cloud state merge', () => {
       preferences: { fontSize: 22, lineHeight: 2.1, theme: 'dark', readMode: 'study' },
       readingHistory: [{ bookId: 'alice', chapterId: 'alice-ch01', visitedAt: '2026-08-23T00:00:00.000Z' }],
       reviewRecords: {},
+      studySessions: [],
     }
 
     const merged = mergeCloudState(local, {
@@ -86,6 +103,7 @@ describe('cloud state merge', () => {
         preferences: { fontSize: 20, lineHeight: 2, theme: 'paper', readMode: 'study' },
         readingHistory: [],
         reviewRecords: {},
+        studySessions: [],
       },
       {
         completedChapters: [],
