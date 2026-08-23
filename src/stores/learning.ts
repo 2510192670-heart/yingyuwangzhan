@@ -16,6 +16,15 @@ export interface ReadingHistoryItem {
   visitedAt: string
 }
 
+export type ReviewResult = 'mastered' | 'again'
+
+export interface ReviewRecord {
+  wordId: string
+  reviewCount: number
+  lastResult: ReviewResult
+  lastReviewedAt: string
+}
+
 export interface LearningState {
   completedChapters: string[]
   masteredWordIds: string[]
@@ -26,6 +35,7 @@ export interface LearningState {
   studyDates: string[]
   preferences: ReadingPreferences
   readingHistory: ReadingHistoryItem[]
+  reviewRecords: Record<string, ReviewRecord>
   lastBookId: string | null
   lastChapterId: string | null
 }
@@ -40,6 +50,7 @@ const initialState: LearningState = {
   studyDates: [],
   preferences: { fontSize: 20, lineHeight: 2, theme: 'paper', readMode: 'study' },
   readingHistory: [],
+  reviewRecords: {},
   lastBookId: books[0]?.id ?? null,
   lastChapterId: books[0]?.chapters[0]?.id ?? null,
 }
@@ -83,6 +94,7 @@ export const useLearningStore = defineStore('learning', () => {
       studyDates: [...toRaw(raw.studyDates ?? [])],
       preferences: { ...initialState.preferences, ...toRaw(raw.preferences ?? {}) },
       readingHistory: [...toRaw(raw.readingHistory ?? [])],
+      reviewRecords: { ...toRaw(raw.reviewRecords ?? {}) },
       lastBookId: raw.lastBookId,
       lastChapterId: raw.lastChapterId,
     }
@@ -143,5 +155,16 @@ export const useLearningStore = defineStore('learning', () => {
     persist()
   }
 
-  return { state, ready, completedCount, wordbookCount, load, replaceState, rememberChapter, updatePreferences, rememberReadingPosition, recordStudyTime, markChapterComplete, toggleWordbook, toggleMastery }
+  function recordReview(wordId: string, result: ReviewResult, reviewedAt = new Date().toISOString()) {
+    const previous = state.value.reviewRecords[wordId]
+    state.value.reviewRecords[wordId] = {
+      wordId,
+      reviewCount: (previous?.reviewCount ?? 0) + 1,
+      lastResult: result,
+      lastReviewedAt: reviewedAt,
+    }
+    persist()
+  }
+
+  return { state, ready, completedCount, wordbookCount, load, replaceState, rememberChapter, updatePreferences, rememberReadingPosition, recordStudyTime, markChapterComplete, toggleWordbook, toggleMastery, recordReview }
 })

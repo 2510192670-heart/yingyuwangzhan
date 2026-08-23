@@ -9,19 +9,26 @@ const words = [
 
 describe('WordbookView', () => {
   it('filters visible words by search text', async () => {
-    const wrapper = mount(WordbookView, { props: { words, masteredWordIds: [] } })
+    const wrapper = mount(WordbookView, { props: { words, masteredWordIds: [], reviewRecords: {} } })
     await wrapper.get('input[placeholder="搜索单词或释义"]').setValue('abuse')
     expect(wrapper.text()).toContain('abuse')
     expect(wrapper.text()).not.toContain('board')
   })
 
   it('enters review mode and emits mastery for the current word', async () => {
-    const wrapper = mount(WordbookView, { props: { words, masteredWordIds: [] } })
+    const wrapper = mount(WordbookView, { props: { words, masteredWordIds: [], reviewRecords: {} } })
     await wrapper.get('button.review-button').trigger('click')
     expect(wrapper.text()).toContain('复习模式')
     await wrapper.get('button.review-master').trigger('click')
     expect(wrapper.emitted('mastery')?.[0]).toEqual([words[0]])
     expect(wrapper.text()).toContain('2 / 2')
     expect(wrapper.text()).toContain('board')
+  })
+
+  it('opens a word detail panel from the word row', async () => {
+    const wrapper = mount(WordbookView, { props: { words, masteredWordIds: [], reviewRecords: {} } })
+    await wrapper.get('.word-cell strong').trigger('click')
+    expect(wrapper.text()).toContain('WORD DETAIL')
+    expect(wrapper.text()).toContain('滥用；虐待')
   })
 })

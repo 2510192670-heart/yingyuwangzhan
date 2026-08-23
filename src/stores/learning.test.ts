@@ -59,4 +59,17 @@ describe('learning store', () => {
     expect(store.state.preferences.theme).toBe('dark')
     expect(store.state.readingHistory[0]).toMatchObject({ bookId: 'alice', chapterId: 'alice-ch01' })
   })
+
+  it('records review outcomes per word and keeps the latest result', () => {
+    const store = useLearningStore()
+    store.load()
+    store.recordReview('alice-w001', 'again', '2026-08-23T10:00:00.000Z')
+    store.recordReview('alice-w001', 'mastered', '2026-08-24T10:00:00.000Z')
+    expect(store.state.reviewRecords['alice-w001']).toEqual({
+      wordId: 'alice-w001',
+      reviewCount: 2,
+      lastResult: 'mastered',
+      lastReviewedAt: '2026-08-24T10:00:00.000Z',
+    })
+  })
 })

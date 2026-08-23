@@ -15,6 +15,7 @@ describe('learning sync payload', () => {
       lastChapterId: 'alice-ch01',
       preferences: { fontSize: 20, lineHeight: 2, theme: 'paper', readMode: 'study' },
       readingHistory: [],
+      reviewRecords: {},
     }
 
     const payload = buildSyncPayload('user-1', state, '2026-08-23T00:00:00.000Z')
@@ -46,6 +47,7 @@ describe('cloud state merge', () => {
       lastChapterId: 'alice-ch01',
       preferences: { fontSize: 22, lineHeight: 2.1, theme: 'dark', readMode: 'study' },
       readingHistory: [{ bookId: 'alice', chapterId: 'alice-ch01', visitedAt: '2026-08-23T00:00:00.000Z' }],
+      reviewRecords: {},
     }
 
     const merged = mergeCloudState(local, {
@@ -83,6 +85,7 @@ describe('cloud state merge', () => {
       lastChapterId: null,
         preferences: { fontSize: 20, lineHeight: 2, theme: 'paper', readMode: 'study' },
         readingHistory: [],
+        reviewRecords: {},
       },
       {
         completedChapters: [],

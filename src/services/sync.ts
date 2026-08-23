@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { books } from '../data/books'
-import type { ReadingHistoryItem, ReadingPreferences } from '../stores/learning'
+import type { ReadingHistoryItem, ReadingPreferences, ReviewRecord } from '../stores/learning'
 
 export interface LearningSyncState {
   completedChapters: string[]
@@ -14,6 +14,7 @@ export interface LearningSyncState {
   lastChapterId: string | null
   preferences: ReadingPreferences
   readingHistory: ReadingHistoryItem[]
+  reviewRecords: Record<string, ReviewRecord>
 }
 
 export interface SyncPayload {
@@ -34,6 +35,7 @@ export interface CloudLearningRows {
   lastChapterId: string | null
   preferences?: ReadingPreferences
   readingHistory?: ReadingHistoryItem[]
+  reviewRecords?: Record<string, ReviewRecord>
 }
 
 function unique(values: string[]) {
@@ -64,6 +66,7 @@ export function mergeCloudState(local: LearningSyncState, cloud: CloudLearningRo
     lastChapterId: cloud.lastChapterId ?? local.lastChapterId,
     preferences: { ...local.preferences, ...(cloud.preferences ?? {}) },
     readingHistory: [...(local.readingHistory ?? [])],
+    reviewRecords: { ...(local.reviewRecords ?? {}) },
   }
 }
 
@@ -155,5 +158,6 @@ export async function pullLearningState(client: SupabaseClient, userId: string, 
     lastChapterId: latest?.chapter_id ?? null,
     preferences: local.preferences,
     readingHistory: local.readingHistory,
+    reviewRecords: local.reviewRecords,
   })
 }
