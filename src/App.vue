@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { books, type Book } from './data/books'
+import { isSupabaseConfigured, supabase } from './lib/supabase'
+import { ensureAnonymousSession } from './services/auth'
+import { syncLearningState } from './services/sync'
 import { useLearningStore } from './stores/learning'
 
 type Tab = 'shelf' | 'wordbook' | 'profile'
@@ -9,6 +12,9 @@ const activeTab = ref<Tab>('shelf')
 const selectedBook = ref<Book | null>(null)
 const selectedChapterId = ref<string | null>(null)
 const learning = useLearningStore()
+const cloudStatus = ref('本地优先')
+let cloudUserId: string | null = null
+let syncTimer: number | undefined
 
 const selectedChapter = computed(() => {
   if (!selectedBook.value || !selectedChapterId.value) return null
@@ -35,7 +41,30 @@ function completeCurrentChapter() {
   if (selectedChapterId.value) learning.markChapterComplete(selectedChapterId.value)
 }
 
-onMounted(() => learning.load())
+async function syncCloud() {
+  if (!isSupabaseConfigured) return
+  try {
+    cloudUserId ??= (await ensureAnonymousSession()).user.id
+    await syncLearningState(supabase, cloudUserId, learning.state)
+    cloudStatus.value = '已同步'
+  } catch (error) {
+    console.warn('[Learning] 云同步不可用，继续使用本地数据', error)
+    cloudStatus.value = '离线模式'
+  }
+}
+
+function scheduleCloudSync() {
+  if (!isSupabaseConfigured) return
+  window.clearTimeout(syncTimer)
+  syncTimer = window.setTimeout(() => void syncCloud(), 500)
+}
+
+watch(() => learning.state, scheduleCloudSync, { deep: true })
+
+onMounted(async () => {
+  learning.load()
+  await syncCloud()
+})
 </script>
 
 <template>
@@ -48,7 +77,7 @@ onMounted(() => learning.load())
         <button :class="['nav-item', { active: activeTab === 'wordbook' }]" @click="activeTab = 'wordbook'">✎ <span>生词本</span></button>
         <button :class="['nav-item', { active: activeTab === 'profile' }]" @click="activeTab = 'profile'">◉ <span>我的</span></button>
       </nav>
-      <div class="sidebar-note">本地优先保存<br />准备接入 Supabase 同步</div>
+      <div class="sidebar-note">{{ cloudStatus }}<br />学习数据按用户隔离</div>
     </aside>
 
     <main class="main-content">
