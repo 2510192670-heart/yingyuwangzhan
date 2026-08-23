@@ -49,4 +49,14 @@ describe('learning store', () => {
     expect(store.state.studySeconds).toBe(180)
     expect(store.state.studyDates).toEqual(['2026-08-23', '2026-08-24'])
   })
+
+  it('persists reader preferences and recent reading history', () => {
+    const store = useLearningStore()
+    store.load()
+    store.updatePreferences({ fontSize: 22, theme: 'dark' })
+    store.rememberChapter('alice', 'alice-ch01')
+    expect(store.state.preferences.fontSize).toBe(22)
+    expect(store.state.preferences.theme).toBe('dark')
+    expect(store.state.readingHistory[0]).toMatchObject({ bookId: 'alice', chapterId: 'alice-ch01' })
+  })
 })

@@ -3,6 +3,19 @@ import { defineStore } from 'pinia'
 import { books } from '../data/books'
 import { createJsonStore } from '../services/localStore'
 
+export interface ReadingPreferences {
+  fontSize: number
+  lineHeight: number
+  theme: 'paper' | 'dark'
+  readMode: 'study' | 'hide-zh' | 'hide-en'
+}
+
+export interface ReadingHistoryItem {
+  bookId: string
+  chapterId: string
+  visitedAt: string
+}
+
 export interface LearningState {
   completedChapters: string[]
   masteredWordIds: string[]
@@ -11,6 +24,8 @@ export interface LearningState {
   readingPositions: Record<string, number>
   studySeconds: number
   studyDates: string[]
+  preferences: ReadingPreferences
+  readingHistory: ReadingHistoryItem[]
   lastBookId: string | null
   lastChapterId: string | null
 }
@@ -23,6 +38,8 @@ const initialState: LearningState = {
   readingPositions: {},
   studySeconds: 0,
   studyDates: [],
+  preferences: { fontSize: 20, lineHeight: 2, theme: 'paper', readMode: 'study' },
+  readingHistory: [],
   lastBookId: books[0]?.id ?? null,
   lastChapterId: books[0]?.chapters[0]?.id ?? null,
 }
@@ -64,6 +81,8 @@ export const useLearningStore = defineStore('learning', () => {
       readingPositions: { ...(toRaw(raw.readingPositions ?? {})) },
       studySeconds: raw.studySeconds ?? 0,
       studyDates: [...toRaw(raw.studyDates ?? [])],
+      preferences: { ...initialState.preferences, ...toRaw(raw.preferences ?? {}) },
+      readingHistory: [...toRaw(raw.readingHistory ?? [])],
       lastBookId: raw.lastBookId,
       lastChapterId: raw.lastChapterId,
     }
@@ -73,6 +92,15 @@ export const useLearningStore = defineStore('learning', () => {
   function rememberChapter(bookId: string, chapterId: string) {
     state.value.lastBookId = bookId
     state.value.lastChapterId = chapterId
+    state.value.readingHistory = [
+      { bookId, chapterId, visitedAt: new Date().toISOString() },
+      ...state.value.readingHistory.filter((item) => !(item.bookId === bookId && item.chapterId === chapterId)),
+    ].slice(0, 20)
+    persist()
+  }
+
+  function updatePreferences(next: Partial<ReadingPreferences>) {
+    state.value.preferences = { ...state.value.preferences, ...next }
     persist()
   }
 
@@ -115,5 +143,5 @@ export const useLearningStore = defineStore('learning', () => {
     persist()
   }
 
-  return { state, ready, completedCount, wordbookCount, load, replaceState, rememberChapter, rememberReadingPosition, recordStudyTime, markChapterComplete, toggleWordbook, toggleMastery }
+  return { state, ready, completedCount, wordbookCount, load, replaceState, rememberChapter, updatePreferences, rememberReadingPosition, recordStudyTime, markChapterComplete, toggleWordbook, toggleMastery }
 })
