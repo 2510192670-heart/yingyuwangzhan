@@ -9,8 +9,9 @@ import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { ensureAnonymousSession } from './services/auth'
 import { pullLearningState, syncLearningState } from './services/sync'
 import { createSyncQueue } from './services/offlineQueue'
+import { createBookLibrary, filterBooks, parseBooksImport } from './services/bookLibrary'
 import { getAdjacentChapterId, getBookProgress, tokenizeReadingContent, type ReadingToken } from './services/reading'
-import { useLearningStore } from './stores/learning'
+import { getBrowserUserId, useLearningStore } from './stores/learning'
 import type { ReadingPreferences } from './stores/learning'
 
 type Tab = 'shelf' | 'wordbook' | 'profile'
@@ -20,6 +21,11 @@ const selectedChapterId = ref<string | null>(null)
 const selectedWord = ref<Word | null>(null)
 const fontSize = computed(() => learning.state.preferences.fontSize)
 const shelfView = ref<'grid' | 'list'>('grid')
+const shelfSearch = ref('')
+const shelfCategory = ref('all')
+const customBooks = ref<Book[]>([])
+const importInput = ref<HTMLInputElement | null>(null)
+const importMessage = ref('')
 const learning = useLearningStore()
 const cloudStatus = ref('本地优先')
 let cloudUserId: string | null = null
@@ -27,10 +33,13 @@ let syncTimer: number | undefined
 let positionTimer: number | undefined
 let syncInFlight = false
 const studyStartedAt = ref<number | null>(null)
+const libraryBooks = computed(() => [...books, ...customBooks.value.filter((book) => !books.some((builtIn) => builtIn.id === book.id))])
+const shelfCategories = computed(() => ['all', ...new Set(libraryBooks.value.map((book) => book.category || book.level || '未分类'))])
+const filteredBooks = computed(() => filterBooks(libraryBooks.value, shelfSearch.value, shelfCategory.value))
 
 const selectedChapter = computed(() => selectedBook.value && selectedChapterId.value ? selectedBook.value.chapters.find((chapter) => chapter.id === selectedChapterId.value) ?? null : null)
-const wordbookWords = computed(() => books.flatMap((book) => book.words).filter((word) => learning.state.wordbookIds.includes(word.id)))
-const totalChapters = computed(() => books.reduce((total, book) => total + book.chapters.length, 0))
+const wordbookWords = computed(() => libraryBooks.value.flatMap((book) => book.words).filter((word) => learning.state.wordbookIds.includes(word.id)))
+const totalChapters = computed(() => libraryBooks.value.reduce((total, book) => total + book.chapters.length, 0))
 const activeTitle = computed(() => ({ shelf: '选一本书，开始今天的故事', wordbook: '把遇见的词，留在自己的语言里', profile: '记录每一次靠近文字的时刻' })[activeTab.value])
 const currentBookProgress = computed(() => getBookProgress(books[0], learning.state.completedChapters))
 const continueChapter = computed(() => {
@@ -39,7 +48,7 @@ const continueChapter = computed(() => {
 })
 const currentChapterIndex = computed(() => selectedBook.value && selectedChapterId.value ? selectedBook.value.chapters.findIndex((chapter) => chapter.id === selectedChapterId.value) : -1)
 const readingHistoryEntries = computed(() => learning.state.readingHistory.map((item) => {
-  const book = books.find((candidate) => candidate.id === item.bookId)
+  const book = libraryBooks.value.find((candidate) => candidate.id === item.bookId)
   const chapter = book?.chapters.find((candidate) => candidate.id === item.chapterId)
   return book && chapter ? { ...item, bookTitle: book.title, chapterTitle: chapter.title } : null
 }).filter((item): item is NonNullable<typeof item> => Boolean(item)))
@@ -59,6 +68,16 @@ function decreaseFontSize() { learning.updatePreferences({ fontSize: Math.max(16
 function increaseFontSize() { learning.updatePreferences({ fontSize: Math.min(26, fontSize.value + 1) }) }
 function updateReaderPreferences(next: Partial<ReadingPreferences>) { learning.updatePreferences(next) }
 function recordWordReview(word: Word, result: 'mastered' | 'again') { learning.recordReview(word.id, result) }
+function triggerImport() { importInput.value?.click() }
+async function handleImport(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  const result = parseBooksImport(await file.text())
+  if (result.error) importMessage.value = result.error
+  else { const existing = customBooks.value.filter((book) => !result.books.some((incoming) => incoming.id === book.id)); customBooks.value = [...existing, ...result.books]; createBookLibrary(window.localStorage, getBrowserUserId()).save(customBooks.value); importMessage.value = `已导入 ${result.books.length} 本书` }
+  input.value = ''
+}
 function completeCurrentChapter() { if (selectedChapterId.value) learning.markChapterComplete(selectedChapterId.value) }
 function moveChapter(delta: number) {
   if (!selectedBook.value || !selectedChapterId.value) return
@@ -71,7 +90,7 @@ async function syncCloud() { if (!isSupabaseConfigured || syncInFlight) return; 
 function scheduleCloudSync() { if (!isSupabaseConfigured) return; window.clearTimeout(syncTimer); syncTimer = window.setTimeout(() => void syncCloud(), 500) }
 function handleOnline() { void syncCloud() }
 watch(() => learning.state, scheduleCloudSync, { deep: true })
-onMounted(async () => { learning.load(); window.addEventListener('online', handleOnline); await syncCloud() })
+onMounted(async () => { learning.load(); customBooks.value = createBookLibrary(window.localStorage, getBrowserUserId()).load(); window.addEventListener('online', handleOnline); await syncCloud() })
 onBeforeUnmount(() => { flushStudyTime(); window.removeEventListener('online', handleOnline) })
 </script>
 
@@ -79,7 +98,7 @@ onBeforeUnmount(() => { flushStudyTime(); window.removeEventListener('online', h
   <div class="app-shell">
     <aside class="sidebar"><div class="brand"><span class="brand-mark">翯</span><span>HEHE<br /><small>READING ROOM</small></span></div><div class="sidebar-rule" /><nav class="nav-list" aria-label="主导航"><button :class="['nav-item', { active: activeTab === 'shelf' }]" @click="activeTab = 'shelf'"><AppIcon name="shelf" /><span>书架</span></button><button :class="['nav-item', { active: activeTab === 'wordbook' }]" @click="activeTab = 'wordbook'"><AppIcon name="bookmark" /><span>生词本</span></button><button :class="['nav-item', { active: activeTab === 'profile' }]" @click="activeTab = 'profile'"><AppIcon name="user" /><span>我的</span></button></nav><div class="sidebar-bottom"><span class="sync-dot" :class="{ offline: cloudStatus === '离线模式' }" />{{ cloudStatus }}<small>学习数据按用户隔离</small></div></aside>
     <main class="main-content"><header class="topbar"><div><p class="eyebrow">HEHE READING ROOM</p><h1>{{ activeTitle }}</h1></div><div class="header-stat"><strong>{{ learning.wordbookCount }}</strong><span>生词</span></div></header>
-      <section v-if="activeTab === 'shelf'" class="page-section shelf-page"><div class="continue-card" @click="openBook(books[0])"><div class="continue-cover" :style="{ background: books[0].accent }">爽</div><div class="continue-copy"><p class="section-kicker">继续阅读</p><h2>{{ books[0].title }}</h2><p>{{ continueChapter?.title }}</p><div class="progress-line"><i :style="{ width: `${currentBookProgress}%` }" /><span>{{ currentBookProgress }}%</span></div></div><button class="round-arrow" aria-label="继续阅读"><AppIcon name="arrow" :size="22" /></button></div><div class="section-heading"><div><h2>我的书架 <em>{{ books.length }}</em></h2><p>每一本，都是一段可以慢慢读完的故事。</p></div><div class="view-switch"><button :class="{ selected: shelfView === 'grid' }" @click.stop="shelfView = 'grid'"><AppIcon name="grid" :size="17" /></button><button :class="{ selected: shelfView === 'list' }" @click.stop="shelfView = 'list'"><AppIcon name="list" :size="17" /></button></div></div><div :class="['book-grid', { 'list-view': shelfView === 'list' }]" :aria-label="shelfView === 'grid' ? '网格书架' : '列表书架'"><BookCard v-for="(book, index) in books" :key="book.id" :book="book" :index="index" :progress="getBookProgress(book, learning.state.completedChapters)" @open="openBook(book)" /></div></section>
+      <section v-if="activeTab === 'shelf'" class="page-section shelf-page"><div class="shelf-toolbar"><label class="shelf-search"><AppIcon name="list" :size="16" /><input v-model="shelfSearch" placeholder="搜索书名、作者或简介" /></label><select v-model="shelfCategory" aria-label="书籍分类"><option v-for="category in shelfCategories" :key="category" :value="category">{{ category === 'all' ? '全部分类' : category }}</option></select><button class="import-button" @click="triggerImport">导入书籍</button><input ref="importInput" class="visually-hidden" type="file" accept=".json,application/json" @change="handleImport" /></div><p v-if="importMessage" class="import-message" role="status">{{ importMessage }}</p><div class="continue-card" @click="openBook(books[0])"><div class="continue-cover" :style="{ background: books[0].accent }">爽</div><div class="continue-copy"><p class="section-kicker">继续阅读</p><h2>{{ books[0].title }}</h2><p>{{ continueChapter?.title }}</p><div class="progress-line"><i :style="{ width: `${currentBookProgress}%` }" /><span>{{ currentBookProgress }}%</span></div></div><button class="round-arrow" aria-label="继续阅读"><AppIcon name="arrow" :size="22" /></button></div><div class="section-heading"><div><h2>我的书架 <em>{{ libraryBooks.length }}</em></h2><p>每一本，都是一段可以慢慢读完的故事。</p></div><div class="view-switch"><button :class="{ selected: shelfView === 'grid' }" @click.stop="shelfView = 'grid'"><AppIcon name="grid" :size="17" /></button><button :class="{ selected: shelfView === 'list' }" @click.stop="shelfView = 'list'"><AppIcon name="list" :size="17" /></button></div></div><div v-if="!filteredBooks.length" class="filtered-empty">没有找到匹配的书籍，可以换个关键词或分类。</div><div v-else :class="['book-grid', { 'list-view': shelfView === 'list' }]" :aria-label="shelfView === 'grid' ? '网格书架' : '列表书架'"><BookCard v-for="(book, index) in filteredBooks" :key="book.id" :book="book" :index="index" :progress="getBookProgress(book, learning.state.completedChapters)" @open="openBook(book)" /></div></section>
       <WordbookView v-else-if="activeTab === 'wordbook'" :words="wordbookWords" :mastered-word-ids="learning.state.masteredWordIds" :review-records="learning.state.reviewRecords" @mastery="learning.toggleMastery($event.id)" @review="recordWordReview" @remove="learning.toggleWordbook($event.id)" @shelf="activeTab = 'shelf'" />
       <ProfileView v-else :mastered="learning.state.masteredWordIds.length" :wordbook="learning.wordbookCount" :completed="learning.completedCount" :total-chapters="totalChapters" :study-seconds="learning.state.studySeconds" :study-days="learning.state.studyDates.length" :preferences="learning.state.preferences" :history="readingHistoryEntries" @navigate="activeTab = $event" @update-preferences="updateReaderPreferences" />
     </main>

@@ -63,7 +63,7 @@ const initialState: LearningState = {
   lastChapterId: books[0]?.chapters[0]?.id ?? null,
 }
 
-function getBrowserUserId() {
+export function getBrowserUserId() {
   const key = 'hehe-reading:browser-user-id'
   const existing = window.localStorage.getItem(key)
   if (existing) return existing

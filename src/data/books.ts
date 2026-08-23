@@ -27,6 +27,7 @@ export interface Book {
   subtitle?: string
   author?: string
   level?: string
+  category?: string
   description?: string
   accent: string
   coverMark: string
