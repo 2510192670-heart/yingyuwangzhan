@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { books } from '../data/books'
 import type { ReadingHistoryItem, ReadingPreferences, ReviewRecord, StudySessionRecord } from '../stores/learning'
+import { detectSyncConflicts, type SyncConflict } from './syncConflicts'
 
 export interface LearningSyncState {
   completedChapters: string[]
@@ -39,6 +40,11 @@ export interface CloudLearningRows {
   readingHistory?: ReadingHistoryItem[]
   reviewRecords?: Record<string, ReviewRecord>
   studySessions?: StudySessionRecord[]
+}
+
+export interface PullLearningResult {
+  state: LearningSyncState
+  conflicts: SyncConflict[]
 }
 
 function unique(values: string[]) {
@@ -163,7 +169,7 @@ export async function syncLearningState(client: SupabaseClient, userId: string, 
   return payload
 }
 
-export async function pullLearningState(client: SupabaseClient, userId: string, local: LearningSyncState) {
+export async function pullLearningState(client: SupabaseClient, userId: string, local: LearningSyncState): Promise<PullLearningResult> {
   const [progressResult, masteryResult, wordbookResult, sessionsResult] = await Promise.all([
     client.from('reading_progress').select('book_id,chapter_id,completed,scroll_position,updated_at').eq('user_id', userId),
     client.from('word_mastery').select('word_id,status,review_count,last_result,last_reviewed_at').eq('user_id', userId),
@@ -179,7 +185,7 @@ export async function pullLearningState(client: SupabaseClient, userId: string, 
   const progressRows = (progressResult.data ?? []) as Array<{ book_id: string; chapter_id: string; completed: boolean; scroll_position: number; updated_at: string }>
   const latest = [...progressRows].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0]
 
-  return mergeCloudState(local, {
+  const cloudState: CloudLearningRows = {
     completedChapters: progressRows.filter((row) => row.completed).map((row) => row.chapter_id),
     masteredWordIds: ((masteryResult.data ?? []) as Array<{ word_id: string; status: string }>)
       .filter((row) => row.status === 'mastered')
@@ -201,5 +207,12 @@ export async function pullLearningState(client: SupabaseClient, userId: string, 
       .filter((row) => row.last_result && row.last_reviewed_at)
       .map((row) => [row.word_id, { wordId: row.word_id, reviewCount: row.review_count ?? 0, lastResult: row.last_result as 'mastered' | 'again', lastReviewedAt: row.last_reviewed_at as string }])),
     studySessions: ((sessionsResult.data ?? []) as Array<{ client_id: string; study_date: string | null; duration_seconds: number }>).filter((row) => row.study_date).map((row) => ({ id: row.client_id, date: row.study_date as string, durationSeconds: row.duration_seconds })),
-  })
+  }
+  return {
+    state: mergeCloudState(local, cloudState),
+    conflicts: detectSyncConflicts(
+      { bookId: local.lastBookId, chapterId: local.lastChapterId },
+      { bookId: cloudState.lastBookId, chapterId: cloudState.lastChapterId },
+    ),
+  }
 }
