@@ -8,6 +8,7 @@ export interface ReadingPreferences {
   lineHeight: number
   theme: 'paper' | 'dark'
   readMode: 'study' | 'hide-zh' | 'hide-en'
+  pronunciationAccent?: 'us' | 'uk'
 }
 
 export interface ReadingHistoryItem {
@@ -55,7 +56,7 @@ const initialState: LearningState = {
   readingPositions: {},
   studySeconds: 0,
   studyDates: [],
-  preferences: { fontSize: 20, lineHeight: 2, theme: 'paper', readMode: 'study' },
+  preferences: { fontSize: 20, lineHeight: 2, theme: 'paper', readMode: 'study', pronunciationAccent: 'us' },
   readingHistory: [],
   reviewRecords: {},
   studySessions: [],

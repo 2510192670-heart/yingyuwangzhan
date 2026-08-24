@@ -34,6 +34,9 @@ withDefaults(defineProps<{ name: string; size?: number }>(), { size: 20 })
     <template v-else-if="name === 'check'">
       <circle cx="12" cy="12" r="9" /><path d="m8 12 2.6 2.6L16.5 9" />
     </template>
+    <template v-else-if="name === 'volume'">
+      <path d="M4 10v4h3l4 3V7l-4 3z" /><path d="M15 9.5a4 4 0 0 1 0 5M17.5 7a7.5 7.5 0 0 1 0 10" />
+    </template>
     <template v-else-if="name === 'bookmark'">
       <path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18l-6-3-6 3z" />
     </template>
