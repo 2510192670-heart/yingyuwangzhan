@@ -35,7 +35,7 @@ npm run build
 ## PWA 与桌面端
 
 - PWA：生产环境通过 HTTPS 提供 `dist/`（`localhost` 开发环境例外），浏览器满足安装条件后会显示安装提示。
-- PWA 更新：Service Worker 采用网络优先策略，并缓存应用壳；发布新版本时会自动清理旧缓存。
+- PWA 更新：Service Worker 采用网络优先策略，并缓存应用壳；发布新版本时会清理旧缓存并在页面显示“新版本已准备好”，用户确认后激活并刷新。
 - Tauri 开发：`npm run tauri:dev`
 - Tauri 构建：`npm run tauri:build`
 - Tauri 检查：`npm run tauri:check`
